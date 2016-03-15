@@ -24,25 +24,23 @@ uint8_t onewire_reset(uint8_t pin)
 	uint8_t r;
 	uint8_t retries = 125;
 
-	noInterrupts();
 	DIRECT_MODE_INPUT(pin);
-	interrupts();
 	// wait until the wire is high... just in case
 	do {
 		if (--retries == 0) return 0;
 		delayMicroseconds(2);
 	} while ( !DIRECT_READ(pin));
 
-	noInterrupts();
 	DIRECT_WRITE_LOW(pin);
 	DIRECT_MODE_OUTPUT(pin);	// drive output low
-	interrupts();
 	delayMicroseconds(480);
+
 	noInterrupts();
 	DIRECT_MODE_INPUT(pin);	// allow it to float
 	delayMicroseconds(70);
 	r = !DIRECT_READ(pin);
 	interrupts();
+
 	delayMicroseconds(410);
 	return r;
 }
@@ -103,10 +101,7 @@ void onewire_write(uint8_t pin, uint8_t v, uint8_t power /* = 0 */) {
 	  onewire_write_bit(pin, (bitMask & v)?1:0);
   }
   if ( !power) {
-  	noInterrupts();
   	DIRECT_MODE_INPUT(pin);
-  	DIRECT_WRITE_LOW(pin);
-  	interrupts();
   }
 }
 
@@ -115,10 +110,7 @@ void onewire_write_bytes(uint8_t pin, const uint8_t *buf, uint16_t count, bool p
   for (i = 0 ; i < count ; i++)
     onewire_write(pin, buf[i], ONEWIRE_DEFAULT_POWER);
   if (!power) {
-    noInterrupts();
     DIRECT_MODE_INPUT(pin);
-    DIRECT_WRITE_LOW(pin);
-    interrupts();
   }
 }
 
@@ -163,9 +155,7 @@ void onewire_skip(uint8_t pin)
 
 void onewire_depower(uint8_t pin)
 {
-	noInterrupts();
 	DIRECT_MODE_INPUT(pin);
-	interrupts();
 }
 
 void onewire_search_start(onewire_search_t *search)
