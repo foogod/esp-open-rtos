@@ -1,5 +1,16 @@
 #include "onewire.h"
 
+// Platform specific I/O definitions
+#define noInterrupts portDISABLE_INTERRUPTS
+#define interrupts portENABLE_INTERRUPTS
+#define delayMicroseconds sdk_os_delay_us
+
+#define DIRECT_READ(pin)         gpio_read(pin)
+#define DIRECT_MODE_INPUT(pin)   gpio_enable(pin, GPIO_INPUT)
+#define DIRECT_MODE_OUTPUT(pin)  gpio_enable(pin, GPIO_OUTPUT)
+#define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
+#define DIRECT_WRITE_HIGH(pin)   gpio_write(pin, 1)
+
 // global search state
 static unsigned char ROM_NO[ONEWIRE_NUM][8];
 static uint8_t LastDiscrepancy[ONEWIRE_NUM];

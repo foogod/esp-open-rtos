@@ -29,17 +29,6 @@
 #define ONEWIRE_CRC8_TABLE 0
 #endif
 
-// Platform specific I/O definitions
-#define noInterrupts portDISABLE_INTERRUPTS
-#define interrupts portENABLE_INTERRUPTS
-#define delayMicroseconds sdk_os_delay_us
-
-#define DIRECT_READ(pin)         gpio_read(pin)
-#define DIRECT_MODE_INPUT(pin)   gpio_enable(pin, GPIO_INPUT)
-#define DIRECT_MODE_OUTPUT(pin)  gpio_enable(pin, GPIO_OUTPUT)
-#define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
-#define DIRECT_WRITE_HIGH(pin)   gpio_write(pin, 1)
-
 typedef uint64_t onewire_addr_t;
 
 // The following is an invalid ROM address that will never occur in a device
