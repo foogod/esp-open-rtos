@@ -34,6 +34,7 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
         onewire_select(pin, addr);
         onewire_write(pin, DS1820_CONVERT_T);
         
+        onewire_power(pin);
         vTaskDelay(750 / portTICK_RATE_MS);
         
         onewire_reset(pin);
@@ -75,6 +76,7 @@ float ds18b20_read_single(uint8_t pin) {
     onewire_skip_rom(pin);
     onewire_write(pin, DS1820_CONVERT_T);
 
+    onewire_power(pin);
     vTaskDelay(750 / portTICK_RATE_MS);
 
     onewire_reset(pin);
