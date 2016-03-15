@@ -18,14 +18,14 @@
 
 uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
     
-    uint8_t addr[8];
+    onewire_addr_t addr;
     uint8_t sensor_id = 0;
     onewire_reset_search(pin);
     
-    while(onewire_search(pin, addr)){
-        uint8_t crc = onewire_crc8(addr, 7);
-        if (crc != addr[7]){
-            printf("CRC check failed: %02X %02X\n", addr[7], crc);
+    while ((addr = onewire_search(pin)) != ONEWIRE_NONE) {
+        uint8_t crc = onewire_crc8((uint8_t *)&addr, 7);
+        if (crc != (addr >> 56)){
+            printf("CRC check failed: %02X %02X\n", (unsigned)(addr >> 56), crc);
             return 0;
         }
 

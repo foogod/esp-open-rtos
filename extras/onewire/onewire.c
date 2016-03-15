@@ -141,13 +141,16 @@ void onewire_read_bytes(uint8_t pin, uint8_t *buf, uint16_t count) {
 
 // Do a ROM select
 //
-void onewire_select(uint8_t pin, const uint8_t rom[8])
+void onewire_select(uint8_t pin, onewire_addr_t rom)
 {
     uint8_t i;
 
     onewire_write(pin, 0x55, ONEWIRE_DEFAULT_POWER);           // Choose ROM
 
-    for (i = 0; i < 8; i++) onewire_write(pin, rom[i], ONEWIRE_DEFAULT_POWER);
+    for (i = 0; i < 8; i++) {
+        onewire_write(pin, rom & 0xff, ONEWIRE_DEFAULT_POWER);
+        rom >>= 8;
+    }
 }
 
 // Do a ROM skip
@@ -195,12 +198,10 @@ void onewire_target_search(uint8_t pin, uint8_t family_code)
    LastDeviceFlag[pin] = 0;
 }
 
-// Perform a search. If this function returns a '1' then it has
-// enumerated the next device and you may retrieve the ROM from the
-// OneWire::address variable. If there are no devices, no further
+// Perform a search. If the next device has been successfully enumerated, its
+// ROM address will be returned.  If there are no devices, no further
 // devices, or something horrible happens in the middle of the
-// enumeration then a 0 is returned.  If a new device is found then
-// its address is copied to newAddr.  Use OneWire::reset_search() to
+// enumeration then ONEWIRE_NONE is returned.  Use OneWire::reset_search() to
 // start over.
 //
 // --- Replaced by the one from the Dallas Semiconductor web site ---
@@ -210,11 +211,12 @@ void onewire_target_search(uint8_t pin, uint8_t family_code)
 // Return 1 : device found, ROM number in ROM_NO buffer
 //        0 : device not found, end of search
 //
-uint8_t onewire_search(uint8_t pin, uint8_t *newAddr)
+onewire_addr_t onewire_search(uint8_t pin)
 {
    uint8_t id_bit_number;
    uint8_t last_zero, rom_byte_number, search_result;
    uint8_t id_bit, cmp_id_bit;
+   onewire_addr_t addr;
 
    unsigned char rom_byte_mask, search_direction;
 
@@ -235,7 +237,7 @@ uint8_t onewire_search(uint8_t pin, uint8_t *newAddr)
          LastDiscrepancy[pin] = 0;
          LastDeviceFlag[pin] = 0;
          LastFamilyDiscrepancy[pin] = 0;
-         return 0;
+         return ONEWIRE_NONE;
       }
 
       // issue the search command
@@ -322,17 +324,18 @@ uint8_t onewire_search(uint8_t pin, uint8_t *newAddr)
       LastDiscrepancy[pin] = 0;
       LastDeviceFlag[pin] = 0;
       LastFamilyDiscrepancy[pin] = 0;
-      search_result = 0;
+      return ONEWIRE_NONE;
    }
    else
    {
-      for (rom_byte_number = 0; rom_byte_number < 8; rom_byte_number++)
+      addr = 0;
+      for (rom_byte_number = 8; rom_byte_number; rom_byte_number--)
       {
-         newAddr[rom_byte_number] = ROM_NO[pin][rom_byte_number];
-         //printf("Ok I found something at %d - %x...\n",rom_byte_number, newAddr[rom_byte_number]);
+         addr = (addr << 8) | ROM_NO[pin][rom_byte_number];
       }
+      //printf("Ok I found something at %016llx...\n", addr);
    }
-   return search_result;
+   return addr;
 }
 
 // The 1-Wire CRC scheme is described in Maxim Application Note 27:

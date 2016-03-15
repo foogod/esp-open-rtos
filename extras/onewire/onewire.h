@@ -40,6 +40,13 @@
 #define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
 #define DIRECT_WRITE_HIGH(pin)   gpio_write(pin, 1)
 
+typedef uint64_t onewire_addr_t;
+
+// The following is an invalid ROM address that will never occur in a device
+// (CRC mismatch), and so can be useful as an indicator for "no-such-device",
+// etc.
+#define ONEWIRE_NONE ((onewire_addr_t)(0xffffffffffffffffLL))
+
 void onewire_init(uint8_t pin);
 
 // Perform a 1-Wire reset cycle. Returns 1 if a device responds
@@ -48,7 +55,7 @@ void onewire_init(uint8_t pin);
 uint8_t onewire_reset(uint8_t pin);
 
 // Issue a 1-Wire rom select command, you do the reset first.
-void onewire_select(uint8_t pin, const uint8_t rom[8]);
+void onewire_select(uint8_t pin, const onewire_addr_t rom);
 
 // Issue a 1-Wire rom skip command, to address all on bus.
 void onewire_skip(uint8_t pin);
@@ -87,13 +94,13 @@ void onewire_reset_search(uint8_t pin);
 // to search(*newAddr) if it is present.
 void onewire_target_search(uint8_t pin, uint8_t family_code);
 
-// Look for the next device. Returns 1 if a new address has been
-// returned. A zero might mean that the bus is shorted, there are
-// no devices, or you have already retrieved all of them.  It
-// might be a good idea to check the CRC to make sure you didn't
-// get garbage.  The order is deterministic. You will always get
-// the same devices in the same order.
-uint8_t onewire_search(uint8_t pin, uint8_t *newAddr);
+// Look for the next device. Returns the address of the next device on the bus,
+// or ONEWIRE_NONE if there is no next address.  ONEWIRE_NONE might mean that
+// the bus is shorted, there are no devices, or you have already retrieved all
+// of them.  It might be a good idea to check the CRC to make sure you didn't
+// get garbage.  The order is deterministic. You will always get the same
+// devices in the same order.
+onewire_addr_t onewire_search(uint8_t pin);
 
 // Compute a Dallas Semiconductor 8 bit CRC, these are used in the
 // ROM and scratchpad registers.
