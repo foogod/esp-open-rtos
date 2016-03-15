@@ -1,9 +1,10 @@
 #include "onewire.h"
 #include "string.h"
+#include "task.h"
 
 // Platform specific I/O definitions
-#define noInterrupts portDISABLE_INTERRUPTS
-#define interrupts portENABLE_INTERRUPTS
+#define noInterrupts taskENTER_CRITICAL
+#define interrupts taskEXIT_CRITICAL
 #define delayMicroseconds sdk_os_delay_us
 
 #define DIRECT_READ(pin)         gpio_read(pin)
