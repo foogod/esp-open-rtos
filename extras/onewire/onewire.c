@@ -22,8 +22,8 @@ uint8_t onewire_reset(uint8_t pin)
 	uint8_t r;
 	uint8_t retries = 125;
 
-    gpio_enable(pin, GPIO_OUT_OPEN_DRAIN);
-    gpio_write(pin, 1);
+	gpio_enable(pin, GPIO_OUT_OPEN_DRAIN);
+	gpio_write(pin, 1);
 	// wait until the wire is high... just in case
 	do {
 		if (--retries == 0) return 0;
