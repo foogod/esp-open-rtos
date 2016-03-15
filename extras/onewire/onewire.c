@@ -13,11 +13,6 @@
 #define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
 #define DIRECT_WRITE_HIGH(pin)   gpio_write(pin, 1)
 
-void onewire_init(uint8_t pin)
-{
-  gpio_enable(pin, GPIO_INPUT);  
-}
-
 // Perform the onewire reset function.  We will wait up to 250uS for
 // the bus to come high, if it doesn't then it is broken or shorted
 // and we return a 0;
