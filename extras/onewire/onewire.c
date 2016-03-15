@@ -1,4 +1,5 @@
 #include "onewire.h"
+#include "string.h"
 
 // Platform specific I/O definitions
 #define noInterrupts portDISABLE_INTERRUPTS
@@ -11,16 +12,9 @@
 #define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
 #define DIRECT_WRITE_HIGH(pin)   gpio_write(pin, 1)
 
-// global search state
-static unsigned char ROM_NO[ONEWIRE_NUM][8];
-static uint8_t LastDiscrepancy[ONEWIRE_NUM];
-static uint8_t LastFamilyDiscrepancy[ONEWIRE_NUM];
-static uint8_t LastDeviceFlag[ONEWIRE_NUM];
-
 void onewire_init(uint8_t pin)
 {
   gpio_enable(pin, GPIO_INPUT);  
-  onewire_reset_search(pin);
 }
 
 // Perform the onewire reset function.  We will wait up to 250uS for
@@ -178,35 +172,25 @@ void onewire_depower(uint8_t pin)
 	interrupts();
 }
 
-// You need to use this function to start a search again from the beginning.
-// You do not need to do it for the first search, though you could.
-//
-void onewire_reset_search(uint8_t pin)
+void onewire_search_start(onewire_search_t *search)
 {
   // reset the search state
-  LastDiscrepancy[pin] = 0;
-  LastDeviceFlag[pin] = 0;
-  LastFamilyDiscrepancy[pin] = 0;
-  int i;
-  for(i = 7; ; i--) {
-    ROM_NO[pin][i] = 0;
-    if ( i == 0) break;
-  }
+  memset(search, 0, sizeof(*search));
 }
 
 // Setup the search to find the device type 'family_code' on the next call
 // to search(*newAddr) if it is present.
 //
-void onewire_target_search(uint8_t pin, uint8_t family_code)
+void onewire_search_prefix(onewire_search_t *search, uint8_t family_code)
 {
-   // set the search state to find SearchFamily type devices
-   ROM_NO[pin][0] = family_code;
    uint8_t i;
-   for (i = 1; i < 8; i++)
-      ROM_NO[pin][i] = 0;
-   LastDiscrepancy[pin] = 64;
-   LastFamilyDiscrepancy[pin] = 0;
-   LastDeviceFlag[pin] = 0;
+
+   search->rom_no[0] = family_code;
+   for (i = 1; i < 8; i++) {
+      search->rom_no[i] = 0;
+   }
+   search->last_discrepancy = 64;
+   search->last_device_found = false;
 }
 
 // Perform a search. If the next device has been successfully enumerated, its
@@ -222,7 +206,7 @@ void onewire_target_search(uint8_t pin, uint8_t family_code)
 // Return 1 : device found, ROM number in ROM_NO buffer
 //        0 : device not found, end of search
 //
-onewire_addr_t onewire_search(uint8_t pin)
+onewire_addr_t onewire_search_next(onewire_search_t *search, uint8_t pin)
 {
    uint8_t id_bit_number;
    uint8_t last_zero, search_result;
@@ -240,15 +224,14 @@ onewire_addr_t onewire_search(uint8_t pin)
    search_result = 0;
    
    // if the last call was not the last one
-   if (!LastDeviceFlag[pin])
+   if (!search->last_device_found)
    {
       // 1-Wire reset
       if (!onewire_reset(pin))
       {
          // reset the search
-         LastDiscrepancy[pin] = 0;
-         LastDeviceFlag[pin] = 0;
-         LastFamilyDiscrepancy[pin] = 0;
+         search->last_discrepancy = 0;
+         search->last_device_found = false;
          return ONEWIRE_NONE;
       }
 
@@ -274,29 +257,25 @@ onewire_addr_t onewire_search(uint8_t pin)
             {
                // if this discrepancy if before the Last Discrepancy
                // on a previous next then pick the same as last time
-               if (id_bit_number < LastDiscrepancy[pin])
-                  search_direction = ((ROM_NO[pin][rom_byte_number] & rom_byte_mask) > 0);
+               if (id_bit_number < search->last_discrepancy)
+                  search_direction = ((search->rom_no[rom_byte_number] & rom_byte_mask) > 0);
                else
                   // if equal to last pick 1, if not then pick 0
-                  search_direction = (id_bit_number == LastDiscrepancy[pin]);
+                  search_direction = (id_bit_number == search->last_discrepancy);
 
                // if 0 was picked then record its position in LastZero
                if (search_direction == 0)
                {
                   last_zero = id_bit_number;
-
-                  // check for Last discrepancy in family
-                  if (last_zero < 9)
-                     LastFamilyDiscrepancy[pin] = last_zero;
                }
             }
 
             // set or clear the bit in the ROM byte rom_byte_number
             // with mask rom_byte_mask
             if (search_direction == 1)
-              ROM_NO[pin][rom_byte_number] |= rom_byte_mask;
+              search->rom_no[rom_byte_number] |= rom_byte_mask;
             else
-              ROM_NO[pin][rom_byte_number] &= ~rom_byte_mask;
+              search->rom_no[rom_byte_number] &= ~rom_byte_mask;
 
             // serial number search direction write bit
             onewire_write_bit(pin, search_direction);
@@ -319,23 +298,22 @@ onewire_addr_t onewire_search(uint8_t pin)
       // if the search was successful then
       if (!(id_bit_number < 65))
       {
-         // search successful so set LastDiscrepancy,LastDeviceFlag,search_result
-         LastDiscrepancy[pin] = last_zero;
+         // search successful so set last_discrepancy,last_device_found,search_result
+         search->last_discrepancy = last_zero;
 
          // check for last device
-         if (LastDiscrepancy[pin] == 0)
-            LastDeviceFlag[pin] = 1;
+         if (search->last_discrepancy == 0)
+            search->last_device_found = true;
 
          search_result = 1;
       }
    }
 
    // if no device found then reset counters so next 'search' will be like a first
-   if (!search_result || !ROM_NO[pin][0])
+   if (!search_result || !search->rom_no[0])
    {
-      LastDiscrepancy[pin] = 0;
-      LastDeviceFlag[pin] = 0;
-      LastFamilyDiscrepancy[pin] = 0;
+      search->last_discrepancy = 0;
+      search->last_device_found = false;
       return ONEWIRE_NONE;
    }
    else
@@ -343,7 +321,7 @@ onewire_addr_t onewire_search(uint8_t pin)
       addr = 0;
       for (rom_byte_number = 7; rom_byte_number >= 0; rom_byte_number--)
       {
-         addr = (addr << 8) | ROM_NO[pin][rom_byte_number];
+         addr = (addr << 8) | search->rom_no[rom_byte_number];
       }
       printf("Ok I found something at %08x%08x...\n", (uint32_t)(addr >> 32), (uint32_t)addr);
    }

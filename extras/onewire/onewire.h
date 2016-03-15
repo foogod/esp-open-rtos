@@ -31,6 +31,12 @@
 
 typedef uint64_t onewire_addr_t;
 
+typedef struct {
+    uint8_t rom_no[8];
+    uint8_t last_discrepancy;
+    bool last_device_found;
+} onewire_search_t;
+
 // The following is an invalid ROM address that will never occur in a device
 // (CRC mismatch), and so can be useful as an indicator for "no-such-device",
 // etc.
@@ -77,11 +83,11 @@ void onewire_read_bytes(uint8_t pin, uint8_t *buf, uint16_t count);
 void onewire_depower(uint8_t pin);
 
 // Clear the search state so that if will start from the beginning again.
-void onewire_reset_search(uint8_t pin);
+void onewire_search_start(onewire_search_t *search);
 
 // Setup the search to find the device type 'family_code' on the next call
 // to search(*newAddr) if it is present.
-void onewire_target_search(uint8_t pin, uint8_t family_code);
+void onewire_search_prefix(onewire_search_t *search, uint8_t family_code);
 
 // Look for the next device. Returns the address of the next device on the bus,
 // or ONEWIRE_NONE if there is no next address.  ONEWIRE_NONE might mean that
@@ -89,7 +95,7 @@ void onewire_target_search(uint8_t pin, uint8_t family_code);
 // of them.  It might be a good idea to check the CRC to make sure you didn't
 // get garbage.  The order is deterministic. You will always get the same
 // devices in the same order.
-onewire_addr_t onewire_search(uint8_t pin);
+onewire_addr_t onewire_search_next(onewire_search_t *search, uint8_t pin);
 
 // Compute a Dallas Semiconductor 8 bit CRC, these are used in the
 // ROM and scratchpad registers.

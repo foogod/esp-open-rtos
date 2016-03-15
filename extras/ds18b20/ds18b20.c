@@ -17,12 +17,13 @@
 #define DS1820_CONVERT_T        0x44
 
 uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
-    
     onewire_addr_t addr;
+    onewire_search_t search;
     uint8_t sensor_id = 0;
-    onewire_reset_search(pin);
+
+    onewire_search_start(&search);
     
-    while ((addr = onewire_search(pin)) != ONEWIRE_NONE) {
+    while ((addr = onewire_search_next(&search, pin)) != ONEWIRE_NONE) {
         uint8_t crc = onewire_crc8((uint8_t *)&addr, 7);
         if (crc != (addr >> 56)){
             printf("CRC check failed: %02X %02X\n", (unsigned)(addr >> 56), crc);
