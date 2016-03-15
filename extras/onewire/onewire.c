@@ -5,9 +5,7 @@
 // Platform specific I/O definitions
 #define noInterrupts taskENTER_CRITICAL
 #define interrupts taskEXIT_CRITICAL
-#define delayMicroseconds sdk_os_delay_us
 
-#define DIRECT_READ(pin)         gpio_read(pin)
 #define DIRECT_MODE_INPUT(pin)   gpio_enable(pin, GPIO_INPUT)
 #define DIRECT_MODE_OUTPUT(pin)  gpio_enable(pin, GPIO_OUTPUT)
 #define DIRECT_WRITE_LOW(pin)    gpio_write(pin, 0)
@@ -24,93 +22,78 @@ uint8_t onewire_reset(uint8_t pin)
 	uint8_t r;
 	uint8_t retries = 125;
 
-	DIRECT_MODE_INPUT(pin);
+    gpio_enable(pin, GPIO_OUT_OPEN_DRAIN);
+    gpio_write(pin, 1);
 	// wait until the wire is high... just in case
 	do {
 		if (--retries == 0) return 0;
-		delayMicroseconds(2);
-	} while ( !DIRECT_READ(pin));
+		sdk_os_delay_us(2);
+	} while (!gpio_read(pin));
 
-	DIRECT_WRITE_LOW(pin);
-	DIRECT_MODE_OUTPUT(pin);	// drive output low
-	delayMicroseconds(480);
+	gpio_write(pin, 0);
+	sdk_os_delay_us(480);
 
 	noInterrupts();
-	DIRECT_MODE_INPUT(pin);	// allow it to float
-	delayMicroseconds(70);
-	r = !DIRECT_READ(pin);
+	gpio_write(pin, 1);	// allow it to float
+	sdk_os_delay_us(70);
+	r = !gpio_read(pin);
 	interrupts();
 
-	delayMicroseconds(410);
+	sdk_os_delay_us(410);
 	return r;
 }
 
-// Write a bit. Port and bit is used to cut lookup time and provide
-// more certain timing.
-//
 static void onewire_write_bit(uint8_t pin, uint8_t v)
 {
 	if (v & 1) {
 		noInterrupts();
-		DIRECT_WRITE_LOW(pin);
-		DIRECT_MODE_OUTPUT(pin);	// drive output low
-		delayMicroseconds(10);
-		DIRECT_WRITE_HIGH(pin);	// drive output high
+		gpio_write(pin, 0);  // drive output low
+		sdk_os_delay_us(10);
+		gpio_write(pin, 1);  // allow output high
 		interrupts();
-		delayMicroseconds(55);
+		sdk_os_delay_us(55);
 	} else {
 		noInterrupts();
-		DIRECT_WRITE_LOW(pin);
-		DIRECT_MODE_OUTPUT(pin);	// drive output low
-		delayMicroseconds(65);
-		DIRECT_WRITE_HIGH(pin);	// drive output high
+		gpio_write(pin, 0);  // drive output low
+		sdk_os_delay_us(65);
+		gpio_write(pin, 1);	// allow output high
 		interrupts();
-		delayMicroseconds(5);
+		sdk_os_delay_us(5);
 	}
 }
 
-// Read a bit. Port and bit is used to cut lookup time and provide
-// more certain timing.
-//
 static uint8_t onewire_read_bit(uint8_t pin)
 {
 	uint8_t r;
 
 	noInterrupts();
-	DIRECT_MODE_OUTPUT(pin);
-	DIRECT_WRITE_LOW(pin);
-	delayMicroseconds(3);
-	DIRECT_MODE_INPUT(pin);	// let pin float, pull up will raise
-	delayMicroseconds(10);
-	r = DIRECT_READ(pin);
+	gpio_write(pin, 0);
+	sdk_os_delay_us(3);
+	gpio_write(pin, 1);  // let pin float, pull up will raise
+	sdk_os_delay_us(10);
+	r = gpio_read(pin);
 	interrupts();
-	delayMicroseconds(53);
+	sdk_os_delay_us(53);
 	return r;
 }
 
-// Write a byte. The writing code uses the active drivers to raise the
-// pin high, if you need power after the write (e.g. DS18S20 in
-// parasite power mode) then set 'power' to 1, otherwise the pin will
-// go tri-state at the end of the write to avoid heating in a short or
-// other mishap.
+// Write a byte. The writing code uses open-drain mode and expects the pullup
+// resistor to pull the line high when not driven low.  If you need strong
+// power after the write (e.g. DS18B20 in parasite power mode) then call
+// onewire_power() after this is complete to actively drive the line high.
 //
-void onewire_write(uint8_t pin, uint8_t v, uint8_t power /* = 0 */) {
+void onewire_write(uint8_t pin, uint8_t v) {
   uint8_t bitMask;
 
   for (bitMask = 0x01; bitMask; bitMask <<= 1) {
 	  onewire_write_bit(pin, (bitMask & v)?1:0);
   }
-  if ( !power) {
-  	DIRECT_MODE_INPUT(pin);
-  }
 }
 
-void onewire_write_bytes(uint8_t pin, const uint8_t *buf, uint16_t count, bool power /* = 0 */) {
+void onewire_write_bytes(uint8_t pin, const uint8_t *buf, uint16_t count) {
   uint16_t i;
-  for (i = 0 ; i < count ; i++)
-    onewire_write(pin, buf[i], ONEWIRE_DEFAULT_POWER);
-  if (!power) {
-    DIRECT_MODE_INPUT(pin);
+  for (i = 0 ; i < count ; i++) {
+    onewire_write(pin, buf[i]);
   }
 }
 
@@ -138,24 +121,30 @@ void onewire_select(uint8_t pin, onewire_addr_t rom)
 {
     uint8_t i;
 
-    onewire_write(pin, 0x55, ONEWIRE_DEFAULT_POWER);           // Choose ROM
+    onewire_write(pin, 0x55);           // Choose ROM
 
     for (i = 0; i < 8; i++) {
-        onewire_write(pin, rom & 0xff, ONEWIRE_DEFAULT_POWER);
+        onewire_write(pin, rom & 0xff);
         rom >>= 8;
     }
 }
 
 // Do a ROM skip
 //
-void onewire_skip(uint8_t pin)
+void onewire_skip_rom(uint8_t pin)
 {
-    onewire_write(pin, 0xCC, ONEWIRE_DEFAULT_POWER);           // Skip ROM
+    onewire_write(pin, 0xCC);           // Skip ROM
+}
+
+void onewire_power(uint8_t pin)
+{
+    gpio_enable(pin, GPIO_OUTPUT);
+    gpio_write(pin, 1);
 }
 
 void onewire_depower(uint8_t pin)
 {
-	DIRECT_MODE_INPUT(pin);
+    gpio_enable(pin, GPIO_OUT_OPEN_DRAIN);
 }
 
 void onewire_search_start(onewire_search_t *search)
@@ -222,7 +211,7 @@ onewire_addr_t onewire_search_next(onewire_search_t *search, uint8_t pin)
       }
 
       // issue the search command
-      onewire_write(pin, 0xF0, ONEWIRE_DEFAULT_POWER);
+      onewire_write(pin, 0xF0);
 
       // loop to do the search
       do

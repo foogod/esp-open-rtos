@@ -1,4 +1,4 @@
-#ifndef __ONEWIRE_H__
+ifndef __ONEWIRE_H__
 #define __ONEWIRE_H__
 
 #include <espressif/esp_misc.h> // sdk_os_delay_us
@@ -51,15 +51,15 @@ uint8_t onewire_reset(uint8_t pin);
 void onewire_select(uint8_t pin, const onewire_addr_t rom);
 
 // Issue a 1-Wire rom skip command, to address all on bus.
-void onewire_skip(uint8_t pin);
+void onewire_skip_rom(uint8_t pin);
 
-// Write a byte. If 'power' is one then the wire is held high at
-// the end for parasitically powered devices. You are responsible
-// for eventually depowering it by calling depower() or doing
-// another read or write.
-void onewire_write(uint8_t pin, uint8_t v, uint8_t power);
+// Write a byte. The writing code uses open-drain mode and expects the pullup
+// resistor to pull the line high when not driven low.  If you need strong
+// power after the write (e.g. DS18B20 in parasite power mode) then call
+// onewire_power() after this is complete to actively drive the line high.
+void onewire_write(uint8_t pin, uint8_t v);
 
-void onewire_write_bytes(uint8_t pin, const uint8_t *buf, uint16_t count, bool power);
+void onewire_write_bytes(uint8_t pin, const uint8_t *buf, uint16_t count);
 
 // Read a byte.
 uint8_t onewire_read(uint8_t pin);
@@ -73,11 +73,15 @@ void onewire_read_bytes(uint8_t pin, uint8_t *buf, uint16_t count);
 // Read a bit.
 // uint8_t onewire_read_bit(uint8_t pin);
 
+// Actively drive the bus high to provide extra power for certain operations of
+// parasitically-powered devices.
+void onewire_power(uint8_t pin);
+
 // Stop forcing power onto the bus. You only need to do this if
-// you used the 'power' flag to write() or used a write_bit() call
-// and aren't about to do another read or write. You would rather
-// not leave this powered if you don't have to, just in case
-// someone shorts your bus.
+// you previously called onewire_power() to drive the bus high and now want to
+// allow it to float instead.  Note that onewire_reset() will also
+// automatically depower the bus first, so you do not need to call this first
+// if you just want to start a new operation.
 void onewire_depower(uint8_t pin);
 
 // Clear the search state so that if will start from the beginning again.

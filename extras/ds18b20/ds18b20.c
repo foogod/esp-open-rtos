@@ -32,13 +32,13 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
 
         onewire_reset(pin);
         onewire_select(pin, addr);
-        onewire_write(pin, DS1820_CONVERT_T, ONEWIRE_DEFAULT_POWER);
+        onewire_write(pin, DS1820_CONVERT_T);
         
         vTaskDelay(750 / portTICK_RATE_MS);
         
         onewire_reset(pin);
         onewire_select(pin, addr);
-        onewire_write(pin, DS1820_READ_SCRATCHPAD, ONEWIRE_DEFAULT_POWER);
+        onewire_write(pin, DS1820_READ_SCRATCHPAD);
 
         uint8_t get[10];
 
@@ -72,15 +72,14 @@ uint8_t ds18b20_read_all(uint8_t pin, ds_sensor_t *result) {
 float ds18b20_read_single(uint8_t pin) {
   
     onewire_reset(pin);
-
-    onewire_write(pin, DS1820_SKIP_ROM, ONEWIRE_DEFAULT_POWER);
-    onewire_write(pin, DS1820_CONVERT_T, ONEWIRE_DEFAULT_POWER);
+    onewire_skip_rom(pin);
+    onewire_write(pin, DS1820_CONVERT_T);
 
     vTaskDelay(750 / portTICK_RATE_MS);
 
     onewire_reset(pin);
-    onewire_write(pin, DS1820_SKIP_ROM, ONEWIRE_DEFAULT_POWER);
-    onewire_write(pin, DS1820_READ_SCRATCHPAD, ONEWIRE_DEFAULT_POWER);
+    onewire_skip_rom(pin);
+    onewire_write(pin, DS1820_READ_SCRATCHPAD);
     
     uint8_t get[10];
 
