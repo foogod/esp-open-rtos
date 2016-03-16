@@ -214,7 +214,8 @@ void onewire_target_search(uint8_t pin, uint8_t family_code)
 onewire_addr_t onewire_search(uint8_t pin)
 {
    uint8_t id_bit_number;
-   uint8_t last_zero, rom_byte_number, search_result;
+   uint8_t last_zero, search_result;
+   int rom_byte_number;
    uint8_t id_bit, cmp_id_bit;
    onewire_addr_t addr;
 
@@ -329,11 +330,11 @@ onewire_addr_t onewire_search(uint8_t pin)
    else
    {
       addr = 0;
-      for (rom_byte_number = 8; rom_byte_number; rom_byte_number--)
+      for (rom_byte_number = 7; rom_byte_number >= 0; rom_byte_number--)
       {
          addr = (addr << 8) | ROM_NO[pin][rom_byte_number];
       }
-      //printf("Ok I found something at %016llx...\n", addr);
+      printf("Ok I found something at %08x%08x...\n", (uint32_t)(addr >> 32), (uint32_t)addr);
    }
    return addr;
 }
