@@ -298,7 +298,7 @@ onewire_addr_t onewire_search_next(onewire_search_t *search, uint8_t pin)
       {
          addr = (addr << 8) | search->rom_no[rom_byte_number];
       }
-      printf("Ok I found something at %08x%08x...\n", (uint32_t)(addr >> 32), (uint32_t)addr);
+      //printf("Ok I found something at %08x%08x...\n", (uint32_t)(addr >> 32), (uint32_t)addr);
    }
    return addr;
 }
